@@ -421,17 +421,5 @@ $caps_val = isset( $cfg['comment_max_caps_ratio'] ) ? (float) $cfg['comment_max_
 				<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Save settings', 'vms-elements-form-guard' ); ?>">
 			</p>
 		</form>
-		<?php ob_start(); ?>
-		jQuery( function ( $ ) {
-			$( '.vefg-spam-nav .nav-tab' ).on( 'click', function ( e ) {
-				e.preventDefault();
-				var id = $( this ).data( 'vefg-tab' );
-				$( '.vefg-spam-nav .nav-tab' ).removeClass( 'nav-tab-active' );
-				$( this ).addClass( 'nav-tab-active' );
-				$( '.vefg-spam-tab-panel' ).hide();
-				$( '#' + id ).show();
-			} );
-		} );
-		<?php wp_add_inline_script( 'vefg-admin-toast', ob_get_clean() ); ?>
 	</div>
 </div>

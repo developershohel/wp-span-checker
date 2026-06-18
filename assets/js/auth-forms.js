@@ -448,8 +448,8 @@
 		});
 	};
 
-	// OTP form handler
-	$(document).on('submit', '#vefg-otp-form', function(e) {
+	// OTP/verify form handler (supports legacy and current IDs).
+	$(document).on('submit', '#vefg-verify-form, #vefg-otp-form', function(e) {
 		e.preventDefault();
 		var $form = $(this);
 		var $btn = $form.find('.vefg-auth-submit');

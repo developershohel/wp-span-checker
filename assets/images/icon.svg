@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">VMS Elements Form Guard</title>
+  <defs>
+    <linearGradient id="vefg-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="vefg-shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="vefg-shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#1e1b4b" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="url(#vefg-bg)"/>
+  <rect width="256" height="256" rx="58" fill="url(#vefg-shine)"/>
+  <g filter="url(#vefg-shadow)">
+    <path fill="#ffffff" fill-opacity="0.96" d="M128 52c52 0 78 32 78 72v12c0 40-30 72-78 86-48-14-78-46-78-86v-12c0-40 26-72 78-72z"/>
+  </g>
+  <path fill="none" stroke="#06b6d4" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" d="M88 130l32 32 56-64"/>
+</svg>

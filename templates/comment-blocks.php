@@ -1,6 +1,6 @@
 <?php
 /**
- * Blocked Users — list of enforced rows, plus a "Block User Manually" tab
+ * Blocked Users -- list of enforced rows, plus a "Block User Manually" tab
  * that lets administrators add a user (by ID, username, or email) directly
  * to the block list with a chosen scope.
  *
@@ -206,19 +206,19 @@ $max_strikes  = (int) ( $cfg['block_user_max_strikes'] ?? 5 );
 								<label style="display:block;margin-bottom:8px;">
 									<input type="checkbox" name="vefg_manual_block_scope[]" value="form" checked>
 									<strong><?php esc_html_e( 'Form / Comments', 'vms-elements-form-guard' ); ?></strong>
-									<span class="description"> — <?php esc_html_e( 'Blocks submissions through comments, product reviews, and guarded forms.', 'vms-elements-form-guard' ); ?></span>
+									<span class="description"> - <?php esc_html_e( 'Blocks submissions through comments, product reviews, and guarded forms.', 'vms-elements-form-guard' ); ?></span>
 								</label>
 
 								<label style="display:block;margin-bottom:8px;">
 									<input type="checkbox" name="vefg_manual_block_scope[]" value="login">
 									<strong><?php esc_html_e( 'Login', 'vms-elements-form-guard' ); ?></strong>
-									<span class="description"> — <?php esc_html_e( 'Blocks the user from signing into wp-login.php.', 'vms-elements-form-guard' ); ?></span>
+									<span class="description"> - <?php esc_html_e( 'Blocks the user from signing into wp-login.php.', 'vms-elements-form-guard' ); ?></span>
 								</label>
 
 								<label style="display:block;">
 									<input type="checkbox" name="vefg_manual_block_scope[]" value="site">
 									<strong><?php esc_html_e( 'Site-wide ban', 'vms-elements-form-guard' ); ?></strong>
-									<span class="description"> — <?php esc_html_e( 'Forces logout and blocks every front-end page except the contact page.', 'vms-elements-form-guard' ); ?></span>
+									<span class="description"> - <?php esc_html_e( 'Forces logout and blocks every front-end page except the contact page.', 'vms-elements-form-guard' ); ?></span>
 								</label>
 							</fieldset>
 						</td>
@@ -454,7 +454,7 @@ $max_strikes  = (int) ( $cfg['block_user_max_strikes'] ?? 5 );
 										</span>
 									<?php endif; ?>
 									<?php if ( ! $scope_form && ! $scope_login && ! $scope_site ) : ?>
-										<span class="description">—</span>
+										<span class="description">-</span>
 									<?php endif; ?>
 								</td>
 								<td><?php echo esc_html( $source_label ); ?></td>
@@ -490,7 +490,7 @@ $max_strikes  = (int) ( $cfg['block_user_max_strikes'] ?? 5 );
 											</form>
 										</div>
 									<?php else : ?>
-										—
+										-
 									<?php endif; ?>
 								</td>
 							</tr>
@@ -502,189 +502,3 @@ $max_strikes  = (int) ( $cfg['block_user_max_strikes'] ?? 5 );
 
 	<?php endif; ?>
 </div>
-
-<?php ob_start(); ?>
-(function($){
-	'use strict';
-
-	if (typeof window.VEFGChecker === 'undefined') {
-		return;
-	}
-
-	var ajaxurl = window.VEFGChecker.ajaxurl;
-	var nonce   = window.VEFGChecker.nonce;
-
-	function toast(opts) {
-		if (typeof Swal !== 'undefined') {
-			Swal.fire(Object.assign({
-				toast: true,
-				position: 'top-end',
-				showConfirmButton: false,
-				timer: 2500,
-				timerProgressBar: true
-			}, opts));
-		} else if (opts && opts.title) {
-			alert(opts.title);
-		}
-	}
-
-	// ---- Tab: Block User Manually ----------------------------------------
-	var $form         = $('#vefg-manual-block-form');
-	var $input        = $('#vefg-manual-block-input');
-	var $lookupBtn    = $('#vefg-manual-block-lookup');
-	var $status       = $('#vefg-manual-block-lookup-status');
-	var $preview      = $('#vefg-manual-block-preview');
-	var $avatar       = $('#vefg-manual-block-avatar');
-	var $name         = $('#vefg-manual-block-name');
-	var $meta         = $('#vefg-manual-block-meta');
-	var $blockStatus  = $('#vefg-manual-block-status');
-	var $editLink     = $('#vefg-manual-block-edit-link');
-	var $submit       = $('#vefg-manual-block-submit');
-	var $helper       = $('#vefg-manual-block-helper');
-	var matchedUserId = 0;
-	var lookupTimer   = null;
-
-	function resetPreview() {
-		matchedUserId = 0;
-		$preview.hide();
-		$submit.prop('disabled', true);
-		$helper.text(<?php echo wp_json_encode( __( 'Look up a user first; the block button activates once a valid user is matched.', 'vms-elements-form-guard' ) ); ?>);
-	}
-
-	function runLookup() {
-		var q = ($input.val() || '').toString().trim();
-		if (q === '') {
-			$status.text(<?php echo wp_json_encode( __( 'Enter an ID, username, or email.', 'vms-elements-form-guard' ) ); ?>);
-			resetPreview();
-			return;
-		}
-		$status.text(<?php echo wp_json_encode( __( 'Looking up…', 'vms-elements-form-guard' ) ); ?>);
-
-		$.post(ajaxurl, {
-			action: 'vefg_lookup_user',
-			nonce: nonce,
-			query: q
-		}).done(function(res){
-			if (!res || !res.success) {
-				resetPreview();
-				$status.text((res && res.data && res.data.message) ? res.data.message : <?php echo wp_json_encode( __( 'No user matches that input.', 'vms-elements-form-guard' ) ); ?>);
-				return;
-			}
-			var d = res.data;
-			matchedUserId = parseInt(d.user.id, 10) || 0;
-			$avatar.attr('src', d.user.avatar || '');
-			$name.text(d.user.display_name + ' (' + d.user.login + ')');
-			$meta.text(<?php echo wp_json_encode( __( 'ID', 'vms-elements-form-guard' ) ); ?> + ': ' + d.user.id + '  •  ' + d.user.email + '  •  ' + (d.user.roles && d.user.roles.length ? d.user.roles.join(', ') : <?php echo wp_json_encode( __( 'no role', 'vms-elements-form-guard' ) ); ?>));
-			if (d.user.edit_url) {
-				$editLink.attr('href', d.user.edit_url).show();
-			} else {
-				$editLink.hide();
-			}
-			if (d.block && d.block.is_blocked) {
-				var pills = [];
-				if (d.block.form)  { pills.push(<?php echo wp_json_encode( __( 'Form', 'vms-elements-form-guard' ) ); ?>); }
-				if (d.block.login) { pills.push(<?php echo wp_json_encode( __( 'Login', 'vms-elements-form-guard' ) ); ?>); }
-				if (d.block.site)  { pills.push(<?php echo wp_json_encode( __( 'Site', 'vms-elements-form-guard' ) ); ?>); }
-				$blockStatus.html('<strong style="color:#a02b30;">' + <?php echo wp_json_encode( __( 'Already blocked', 'vms-elements-form-guard' ) ); ?> + ':</strong> ' + pills.join(', '));
-			} else {
-				$blockStatus.html('<span style="color:#2e7d32;">' + <?php echo wp_json_encode( __( 'Not currently blocked.', 'vms-elements-form-guard' ) ); ?> + '</span>');
-			}
-			$preview.show();
-			$submit.prop('disabled', false);
-			$helper.text(<?php echo wp_json_encode( __( 'Review the preview, then click "Block this user".', 'vms-elements-form-guard' ) ); ?>);
-			$status.text('');
-		}).fail(function(){
-			resetPreview();
-			$status.text(<?php echo wp_json_encode( __( 'Lookup failed. Try again.', 'vms-elements-form-guard' ) ); ?>);
-		});
-	}
-
-	$lookupBtn.on('click', runLookup);
-
-	$input.on('input', function(){
-		resetPreview();
-		$status.text('');
-		clearTimeout(lookupTimer);
-		if (($input.val() || '').toString().trim().length >= 2) {
-			lookupTimer = setTimeout(runLookup, 400);
-		}
-	});
-
-	$input.on('keydown', function(e){
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			runLookup();
-		}
-	});
-
-	$form.on('submit', function(e){
-		if (matchedUserId <= 0) {
-			e.preventDefault();
-			$status.text(<?php echo wp_json_encode( __( 'Look up a user first.', 'vms-elements-form-guard' ) ); ?>);
-			return;
-		}
-		var scopes = [];
-		$form.find('input[name="vefg_manual_block_scope[]"]:checked').each(function(){
-			scopes.push($(this).val());
-		});
-		if (scopes.length === 0) {
-			e.preventDefault();
-			$status.text(<?php echo wp_json_encode( __( 'Pick at least one block scope.', 'vms-elements-form-guard' ) ); ?>);
-		}
-	});
-
-	// ---- Tab: Edit existing block scope ----------------------------------
-	$(document).on('click', '.vefg-edit-scope-btn', function(){
-		var $btn      = $(this);
-		var actorKey  = $btn.data('actor-key');
-		var label     = $btn.data('label');
-		var curForm   = String($btn.data('form'))  === '1';
-		var curLogin  = String($btn.data('login')) === '1';
-		var curSite   = String($btn.data('site'))  === '1';
-
-		if (typeof Swal === 'undefined') {
-			return;
-		}
-
-		Swal.fire({
-			title: <?php echo wp_json_encode( __( 'Edit block scope', 'vms-elements-form-guard' ) ); ?> + ' — ' + label,
-			html:
-				'<div style="text-align:left;">'
-				+ '<label style="display:block;margin:6px 0;"><input type="checkbox" id="vefg-swal-form" ' + (curForm ? 'checked' : '') + '> <strong><?php echo esc_js( __( 'Form / Comments', 'vms-elements-form-guard' ) ); ?></strong></label>'
-				+ '<label style="display:block;margin:6px 0;"><input type="checkbox" id="vefg-swal-login" ' + (curLogin ? 'checked' : '') + '> <strong><?php echo esc_js( __( 'Login', 'vms-elements-form-guard' ) ); ?></strong></label>'
-				+ '<label style="display:block;margin:6px 0;"><input type="checkbox" id="vefg-swal-site" ' + (curSite ? 'checked' : '') + '> <strong><?php echo esc_js( __( 'Site-wide ban', 'vms-elements-form-guard' ) ); ?></strong></label>'
-				+ '</div>',
-			showCancelButton: true,
-			confirmButtonText: <?php echo wp_json_encode( __( 'Save', 'vms-elements-form-guard' ) ); ?>,
-			cancelButtonText:  <?php echo wp_json_encode( __( 'Cancel', 'vms-elements-form-guard' ) ); ?>,
-			focusConfirm: false,
-			preConfirm: function(){
-				var scope = [];
-				if (document.getElementById('vefg-swal-form').checked)  { scope.push('form'); }
-				if (document.getElementById('vefg-swal-login').checked) { scope.push('login'); }
-				if (document.getElementById('vefg-swal-site').checked)  { scope.push('site'); }
-				return scope;
-			}
-		}).then(function(result){
-			if (!result.isConfirmed) { return; }
-			var scope = result.value || [];
-			$.post(ajaxurl, {
-				action: 'vefg_edit_block_scope',
-				nonce: nonce,
-				actor_key: actorKey,
-				scope: scope
-			}).done(function(res){
-				if (res && res.success) {
-					toast({ icon: 'success', title: (res.data && res.data.message) || <?php echo wp_json_encode( __( 'Saved.', 'vms-elements-form-guard' ) ); ?> });
-					setTimeout(function(){ window.location.reload(); }, 600);
-				} else {
-					toast({ icon: 'error', title: (res && res.data && res.data.message) || <?php echo wp_json_encode( __( 'Could not save.', 'vms-elements-form-guard' ) ); ?> });
-				}
-			}).fail(function(){
-				toast({ icon: 'error', title: <?php echo wp_json_encode( __( 'Request failed.', 'vms-elements-form-guard' ) ); ?> });
-			});
-		});
-	});
-
-})(jQuery);
-<?php wp_add_inline_script( 'vefg-admin-toast', ob_get_clean() ); ?>

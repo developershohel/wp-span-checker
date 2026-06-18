@@ -64,6 +64,8 @@ class Auth_Forms {
 		add_action( 'wp_ajax_nopriv_vefg_auth_resend_otp', array( $this, 'ajax_handle_resend_otp' ) );
 		add_action( 'wp_ajax_nopriv_vefg_auth_activate', array( $this, 'ajax_handle_activation' ) );
 
+		add_filter( 'authenticate', array( $this, 'block_unverified_user_login' ), 30, 3 );
+
 		// Load email templates
 		require_once VMS_ELEMENTS_FORM_GUARD_DIR . 'templates/emails/vefg-email-template-functions.php';
 	}
@@ -572,12 +574,7 @@ class Auth_Forms {
 				$expiry     = get_user_meta( $user->ID, 'vefg_activation_expiry', true );
 
 				if ( $stored_key === $key && time() < $expiry ) {
-					// Valid activation link - activate user
-					delete_user_meta( $user->ID, 'vefg_activation_key' );
-					delete_user_meta( $user->ID, 'vefg_activation_expiry' );
-					delete_user_meta( $user->ID, 'vefg_otp_code' );
-					delete_user_meta( $user->ID, 'vefg_otp_expiry' );
-					update_user_meta( $user->ID, 'vefg_account_verified', true );
+					self::complete_email_verification( $user );
 
 					// Send welcome email
 					$login_url = $settings['login_page_id'] ? get_permalink( $settings['login_page_id'] ) : wp_login_url();
@@ -770,7 +767,39 @@ class Auth_Forms {
 		);
 
 		if ( is_wp_error( $user ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid username or password.', 'vms-elements-form-guard' ) ) );
+			$error_codes = $user->get_error_codes();
+
+			if ( in_array( 'vefg_email_not_verified', $error_codes, true ) ) {
+				wp_send_json_error(
+					array(
+						'message' => __( 'Your account is not verified yet. Please verify your email first, then log in.', 'vms-elements-form-guard' ),
+					)
+				);
+			}
+
+			if ( array_intersect( $error_codes, array( 'invalid_username', 'incorrect_password', 'invalid_email' ) ) ) {
+				wp_send_json_error(
+					array(
+						'message' => __( 'Login failed. Please check your username/email and password, then try again.', 'vms-elements-form-guard' ),
+					)
+				);
+			}
+
+			$fallback_message = wp_strip_all_tags( $user->get_error_message() );
+			if ( '' === $fallback_message ) {
+				$fallback_message = __( 'Unable to log in right now. Please try again in a moment.', 'vms-elements-form-guard' );
+			}
+
+			wp_send_json_error( array( 'message' => $fallback_message ) );
+		}
+
+		if ( ! self::is_user_email_verified( $user->ID ) ) {
+			wp_logout();
+			wp_send_json_error(
+				array(
+					'message' => __( 'Your account is not verified yet. Please verify your email first, then log in.', 'vms-elements-form-guard' ),
+				)
+			);
 		}
 
 		$redirect = $settings['login_redirect'];
@@ -882,37 +911,25 @@ class Auth_Forms {
 
 		// Check if email verification is enabled (combined OTP + activation link)
 		if ( ! empty( $settings['enable_email_verification'] ) ) {
-			// Generate OTP and activation key
+			$user_id = wp_create_user( $user_login, $password, $user_email );
+
+			if ( is_wp_error( $user_id ) ) {
+				wp_send_json_error( array( 'message' => $user_id->get_error_message() ) );
+			}
+
 			$otp             = self::generate_otp();
 			$otp_expires     = (int) ( $settings['otp_expires_minutes'] ?? 10 );
 			$activation_key  = wp_generate_password( 32, false );
 			$link_expires    = (int) ( $settings['link_expires_hours'] ?? 24 );
 			$link_expires_ts = time() + ( $link_expires * HOUR_IN_SECONDS );
 
-			// Store OTP, activation key, and user data in transient
-			$transient_key = 'vefg_verify_' . md5( $user_email );
-			set_transient(
-				$transient_key,
-				array(
-					'otp'            => $otp,
-					'otp_expires'    => time() + ( $otp_expires * MINUTE_IN_SECONDS ),
-					'activation_key' => $activation_key,
-					'link_expires'   => $link_expires_ts,
-					'user_data'      => array(
-						'user_login' => $user_login,
-						'user_email' => $user_email,
-						'password'   => vms_elements_form_guard_encrypt_secret( $password ),
-					),
-				),
-				max( $otp_expires * MINUTE_IN_SECONDS, $link_expires * HOUR_IN_SECONDS )
-			);
+			self::store_pending_verification_meta( $user_id, $otp, $otp_expires, $activation_key, $link_expires_ts );
 
-			// Build verification/activation URL
 			$verify_page_id = $settings['verify_page_id'] ?? 0;
 			$activation_url = $verify_page_id
 				? add_query_arg(
 					array(
-						'key' => $activation_key,
+						'key'   => $activation_key,
 						'login' => $user_login,
 						'email' => $user_email,
 					),
@@ -920,14 +937,13 @@ class Auth_Forms {
 				)
 				: add_query_arg(
 					array(
-						'key' => $activation_key,
+						'key'   => $activation_key,
 						'login' => $user_login,
 						'email' => $user_email,
 					),
 					home_url( '/verify/' )
 				);
 
-			// Send combined verification email (OTP + activation link)
 			if ( function_exists( 'vefg_email_verification' ) && function_exists( 'vefg_send_html_email' ) ) {
 				/* translators: %s: site name */
 				$subject = sprintf( __( '[%s] Verify Your Email', 'vms-elements-form-guard' ), get_bloginfo( 'name' ) );
@@ -935,21 +951,21 @@ class Auth_Forms {
 				$sent    = vefg_send_html_email( $user_email, $subject, $body );
 
 				if ( ! $sent ) {
-					delete_transient( $transient_key );
+					require_once ABSPATH . 'wp-admin/includes/user.php';
+					wp_delete_user( $user_id );
 					wp_send_json_error( array( 'message' => __( 'Failed to send verification email. Please try again.', 'vms-elements-form-guard' ) ) );
 				}
 			}
 
-			// Redirect to verification page
 			$redirect = $verify_page_id
-				? add_query_arg( 'email', urlencode( $user_email ), get_permalink( $verify_page_id ) )
-				: add_query_arg( 'email', urlencode( $user_email ), home_url( '/verify/' ) );
+				? add_query_arg( 'email', rawurlencode( $user_email ), get_permalink( $verify_page_id ) )
+				: add_query_arg( 'email', rawurlencode( $user_email ), home_url( '/verify/' ) );
 
 			wp_send_json_success(
 				array(
-					'message'          => __( 'Verification email sent! Check your inbox for the code or activation link.', 'vms-elements-form-guard' ),
-					'redirect'         => $redirect,
-					'require_verify'   => true,
+					'message'        => __( 'Verification email sent! Check your inbox for the code or activation link.', 'vms-elements-form-guard' ),
+					'redirect'       => $redirect,
+					'require_verify' => true,
 				)
 			);
 			return;
@@ -963,19 +979,13 @@ class Auth_Forms {
 		}
 
 		update_user_meta( $user_id, '_vefg_account_activated', true );
+		update_user_meta( $user_id, 'vefg_account_verified', '1' );
 
-		// Auto login
-		wp_set_current_user( $user_id );
-		wp_set_auth_cookie( $user_id );
-
-		$redirect = $settings['register_redirect'];
-		if ( empty( $redirect ) ) {
-			$redirect = home_url();
-		}
+		$redirect = $settings['login_page_id'] ? get_permalink( $settings['login_page_id'] ) : wp_login_url();
 
 		wp_send_json_success(
 			array(
-				'message'  => __( 'Account created successfully! Redirecting...', 'vms-elements-form-guard' ),
+				'message'  => __( 'Account created successfully! Please log in to continue.', 'vms-elements-form-guard' ),
 				'redirect' => $redirect,
 			)
 		);
@@ -1420,6 +1430,100 @@ class Auth_Forms {
 	}
 
 	/**
+	 * Whether a user has completed email verification.
+	 *
+	 * @param int $user_id User ID.
+	 * @return bool
+	 */
+	public static function is_user_email_verified( int $user_id ): bool {
+		if ( $user_id <= 0 ) {
+			return false;
+		}
+
+		if ( get_user_meta( $user_id, 'vefg_account_verified', true ) ) {
+			return true;
+		}
+
+		if ( get_user_meta( $user_id, '_vefg_account_activated', true ) ) {
+			return true;
+		}
+
+		if ( get_user_meta( $user_id, 'vefg_email_verified', true ) ) {
+			return true;
+		}
+
+		if ( get_user_meta( $user_id, 'vefg_activation_key', true ) || get_user_meta( $user_id, 'vefg_otp_code', true ) ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Persist OTP + activation link metadata for a pending user.
+	 *
+	 * @param int    $user_id         User ID.
+	 * @param string $otp             OTP code.
+	 * @param int    $otp_expires_min OTP lifetime in minutes.
+	 * @param string $activation_key  Activation key.
+	 * @param int    $link_expires_ts Activation link expiry timestamp.
+	 */
+	private static function store_pending_verification_meta( int $user_id, string $otp, int $otp_expires_min, string $activation_key, int $link_expires_ts ): void {
+		update_user_meta( $user_id, 'vefg_account_verified', '0' );
+		update_user_meta( $user_id, 'vefg_otp_code', $otp );
+		update_user_meta( $user_id, 'vefg_otp_expiry', time() + ( $otp_expires_min * MINUTE_IN_SECONDS ) );
+		update_user_meta( $user_id, 'vefg_activation_key', $activation_key );
+		update_user_meta( $user_id, 'vefg_activation_expiry', $link_expires_ts );
+	}
+
+	/**
+	 * Mark a pending user as verified and clear one-time verification meta.
+	 *
+	 * @param \WP_User $user User object.
+	 */
+	private static function complete_email_verification( \WP_User $user ): void {
+		delete_user_meta( $user->ID, 'vefg_activation_key' );
+		delete_user_meta( $user->ID, 'vefg_activation_expiry' );
+		delete_user_meta( $user->ID, 'vefg_otp_code' );
+		delete_user_meta( $user->ID, 'vefg_otp_expiry' );
+		update_user_meta( $user->ID, 'vefg_account_verified', '1' );
+		update_user_meta( $user->ID, 'vefg_email_verified', '1' );
+		update_user_meta( $user->ID, '_vefg_account_activated', true );
+		delete_transient( 'vefg_verify_' . md5( $user->user_email ) );
+		delete_transient( 'vefg_otp_' . md5( $user->user_email ) );
+	}
+
+	/**
+	 * Block wp-login.php and core auth for users pending email verification.
+	 *
+	 * @param \WP_User|\WP_Error|null $user     User or error.
+	 * @param string                  $username Login name.
+	 * @param string                  $password Password.
+	 * @return \WP_User|\WP_Error|null
+	 */
+	public function block_unverified_user_login( $user, $username, $password ) {
+		unset( $username, $password );
+
+		if ( ! $user instanceof \WP_User ) {
+			return $user;
+		}
+
+		$settings = self::get_settings();
+		if ( empty( $settings['enable_email_verification'] ) ) {
+			return $user;
+		}
+
+		if ( ! self::is_user_email_verified( $user->ID ) ) {
+			return new \WP_Error(
+				'vefg_email_not_verified',
+				__( 'Your account is not verified yet. Please verify your email first, then log in.', 'vms-elements-form-guard' )
+			);
+		}
+
+		return $user;
+	}
+
+	/**
 	 * Generate OTP code.
 	 *
 	 * @param int $length OTP length.
@@ -1468,56 +1572,32 @@ class Auth_Forms {
 			wp_send_json_error( array( 'message' => __( 'Invalid request.', 'vms-elements-form-guard' ) ) );
 		}
 
-		// Try new combined transient first, then legacy
-		$transient_key = 'vefg_verify_' . md5( $email );
-		$stored_data   = get_transient( $transient_key );
-
-		// Fallback to legacy key
-		if ( ! $stored_data ) {
-			$transient_key = 'vefg_otp_' . md5( $email );
-			$stored_data   = get_transient( $transient_key );
-		}
-
-		if ( ! $stored_data || ! is_array( $stored_data ) ) {
+		$user = get_user_by( 'email', $email );
+		if ( ! $user ) {
 			wp_send_json_error( array( 'message' => __( 'Verification code expired. Please request a new one.', 'vms-elements-form-guard' ) ) );
 		}
 
-		// Check if OTP has expired
-		if ( isset( $stored_data['otp_expires'] ) && time() > $stored_data['otp_expires'] ) {
+		if ( self::is_user_email_verified( $user->ID ) ) {
+			wp_send_json_error( array( 'message' => __( 'This account is already verified. Please log in.', 'vms-elements-form-guard' ) ) );
+		}
+
+		$otp_expires_ts = (int) get_user_meta( $user->ID, 'vefg_otp_expiry', true );
+		if ( $otp_expires_ts > 0 && time() > $otp_expires_ts ) {
 			wp_send_json_error( array( 'message' => __( 'Verification code expired. Please request a new one or use the activation link.', 'vms-elements-form-guard' ) ) );
 		}
 
-		if ( $stored_data['otp'] !== $otp_code ) {
+		$stored_otp = (string) get_user_meta( $user->ID, 'vefg_otp_code', true );
+		if ( $stored_otp !== $otp_code ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid verification code.', 'vms-elements-form-guard' ) ) );
 		}
 
-		// OTP verified - complete registration
-		delete_transient( $transient_key );
+		self::complete_email_verification( $user );
 
-		$user_data = $stored_data['user_data'] ?? array();
-
-		if ( empty( $user_data ) ) {
-			wp_send_json_error( array( 'message' => __( 'Registration data not found. Please register again.', 'vms-elements-form-guard' ) ) );
-		}
-
-		// Create user. The password was encrypted before being stored in the transient.
-		$pending_password = vms_elements_form_guard_decrypt_secret( (string) ( $user_data['password'] ?? '' ) );
-		$user_id          = wp_create_user( $user_data['user_login'], $pending_password, $email );
-
-		if ( is_wp_error( $user_id ) ) {
-			wp_send_json_error( array( 'message' => $user_id->get_error_message() ) );
-		}
-
-		// Mark as verified
-		update_user_meta( $user_id, 'vefg_email_verified', true );
-		update_user_meta( $user_id, 'vefg_account_verified', true );
-
-		// Send welcome email
 		$settings  = self::get_settings();
 		$login_url = $settings['login_page_id'] ? get_permalink( $settings['login_page_id'] ) : wp_login_url();
 
 		if ( function_exists( 'vefg_email_welcome' ) && function_exists( 'vefg_send_html_email' ) ) {
-			$body = vefg_email_welcome( $user_data['user_login'], $login_url );
+			$body = vefg_email_welcome( $user->user_login, $login_url );
 			vefg_send_html_email(
 				$email,
 				sprintf(
@@ -1529,15 +1609,11 @@ class Auth_Forms {
 			);
 		}
 
-		// Auto login
-		wp_set_current_user( $user_id );
-		wp_set_auth_cookie( $user_id );
-
-		$redirect = $settings['register_redirect'] ?: home_url();
+		$redirect = $login_url;
 
 		wp_send_json_success(
 			array(
-				'message'  => __( 'Email verified! Redirecting...', 'vms-elements-form-guard' ),
+				'message'  => __( 'Email verified successfully! Redirecting to login...', 'vms-elements-form-guard' ),
 				'redirect' => $redirect,
 			)
 		);
@@ -1557,37 +1633,19 @@ class Auth_Forms {
 			wp_send_json_error( array( 'message' => __( 'Invalid request.', 'vms-elements-form-guard' ) ) );
 		}
 
-		// Try new combined transient first, then legacy
-		$transient_key = 'vefg_verify_' . md5( $email );
-		$stored_data   = get_transient( $transient_key );
-
-		// Fallback to legacy key
-		if ( ! $stored_data ) {
-			$transient_key = 'vefg_otp_' . md5( $email );
-			$stored_data   = get_transient( $transient_key );
-		}
-
-		if ( ! $stored_data || ! isset( $stored_data['user_data'] ) ) {
+		$user = get_user_by( 'email', $email );
+		if ( ! $user || self::is_user_email_verified( $user->ID ) ) {
 			wp_send_json_error( array( 'message' => __( 'Session expired. Please register again.', 'vms-elements-form-guard' ) ) );
 		}
 
 		$settings    = self::get_settings();
 		$otp_expires = (int) ( $settings['otp_expires_minutes'] ?? 10 );
+		$new_otp     = self::generate_otp();
 
-		// Generate new OTP
-		$new_otp                   = self::generate_otp();
-		$stored_data['otp']        = $new_otp;
-		$stored_data['otp_expires'] = time() + ( $otp_expires * MINUTE_IN_SECONDS );
+		update_user_meta( $user->ID, 'vefg_otp_code', $new_otp );
+		update_user_meta( $user->ID, 'vefg_otp_expiry', time() + ( $otp_expires * MINUTE_IN_SECONDS ) );
 
-		// Calculate remaining transient time
-		$link_expires = isset( $stored_data['link_expires'] ) ? $stored_data['link_expires'] - time() : $otp_expires * MINUTE_IN_SECONDS;
-		$transient_ttl = max( $otp_expires * MINUTE_IN_SECONDS, $link_expires );
-
-		set_transient( $transient_key, $stored_data, $transient_ttl );
-
-		// Send email
-		$name = $stored_data['user_data']['user_login'] ?? '';
-		$sent = self::send_otp_email( $email, $new_otp, $name );
+		$sent = self::send_otp_email( $email, $new_otp, $user->user_login );
 
 		if ( ! $sent ) {
 			wp_send_json_error( array( 'message' => __( 'Failed to send email. Please try again.', 'vms-elements-form-guard' ) ) );
@@ -1617,21 +1675,18 @@ class Auth_Forms {
 			wp_send_json_error( array( 'message' => __( 'User not found.', 'vms-elements-form-guard' ) ) );
 		}
 
-		$stored_key = get_user_meta( $user->ID, '_vefg_activation_key', true );
-		$expires    = get_user_meta( $user->ID, '_vefg_activation_expires', true );
+		$stored_key = get_user_meta( $user->ID, 'vefg_activation_key', true );
+		$expires    = (int) get_user_meta( $user->ID, 'vefg_activation_expiry', true );
 
 		if ( $stored_key !== $key ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid activation key.', 'vms-elements-form-guard' ) ) );
 		}
 
-		if ( $expires && time() > $expires ) {
+		if ( $expires > 0 && time() > $expires ) {
 			wp_send_json_error( array( 'message' => __( 'Activation link has expired.', 'vms-elements-form-guard' ) ) );
 		}
 
-		// Activate
-		delete_user_meta( $user->ID, '_vefg_activation_key' );
-		delete_user_meta( $user->ID, '_vefg_activation_expires' );
-		update_user_meta( $user->ID, '_vefg_account_activated', true );
+		self::complete_email_verification( $user );
 
 		$settings  = self::get_settings();
 		$login_url = $settings['login_page_id'] ? get_permalink( $settings['login_page_id'] ) : wp_login_url();

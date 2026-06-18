@@ -656,8 +656,18 @@ msgstr ""
 msgid "reCAPTCHA verification failed."
 msgstr ""
 
-#: includes/class-auth-forms.php:791
-msgid "Invalid username or password."
+#: includes/class-auth-forms.php:775
+#: includes/class-auth-forms.php:800
+#: includes/class-auth-forms.php:1519
+msgid "Your account is not verified yet. Please verify your email first, then log in."
+msgstr ""
+
+#: includes/class-auth-forms.php:783
+msgid "Login failed. Please check your username/email and password, then try again."
+msgstr ""
+
+#: includes/class-auth-forms.php:790
+msgid "Unable to log in right now. Please try again in a moment."
 msgstr ""
 
 #: includes/class-auth-forms.php:800
@@ -723,8 +733,8 @@ msgstr ""
 msgid "Verification email sent! Check your inbox for the code or activation link."
 msgstr ""
 
-#: includes/class-auth-forms.php:973
-msgid "Account created successfully! Redirecting..."
+#: includes/class-auth-forms.php:988
+msgid "Account created successfully! Please log in to continue."
 msgstr ""
 
 #: includes/class-auth-forms.php:987
@@ -888,8 +898,8 @@ msgstr ""
 msgid "Registration data not found. Please register again."
 msgstr ""
 
-#: includes/class-auth-forms.php:1517
-msgid "Email verified! Redirecting..."
+#: includes/class-auth-forms.php:1616
+msgid "Email verified successfully! Redirecting to login..."
 msgstr ""
 
 #: includes/class-auth-forms.php:1547

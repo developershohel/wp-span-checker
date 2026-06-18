@@ -22,6 +22,13 @@ $files = @(
     'auth-forms.js',
     'ai-admin.js',
     'admin-toast.js',
+    'admin-page-picker.js',
+    'admin-spam-tabs.js',
+    'admin-error-messages.js',
+    'admin-ai-settings.js',
+    'admin-comment-blocks.js',
+    'admin-auth-forms-settings.js',
+    'users-actions.js',
     'whitelist.js'
 )
 

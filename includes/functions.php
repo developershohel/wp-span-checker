@@ -1577,6 +1577,21 @@ function vms_elements_form_guard_pro_runtime_ready(): bool {
 }
 
 /**
+ * Mask an API key for display in admin placeholders.
+ *
+ * @param string $key Raw API key.
+ * @return string Masked key or empty string.
+ */
+function vms_elements_form_guard_mask_api_key( string $key ): string {
+	if ( '' === $key || strlen( $key ) < 10 ) {
+		return '';
+	}
+	$start = substr( $key, 0, 6 );
+	$end   = substr( $key, -4 );
+	return $start . '••••••••••••' . $end;
+}
+
+/**
  * Base data passed to VEFGChecker for script localizations.
  *
  * @param array<string, mixed> $extra Additional keys merged on top.
@@ -1613,67 +1628,4 @@ function vms_elements_form_guard_js_asset( string $name ): string {
 	}
 
 	return $base . 'js/' . $name . '.js';
-}
-
-/**
- * Derive a 32-byte encryption key from the site's WordPress salts.
- *
- * @return string Raw 32-byte key.
- */
-function vms_elements_form_guard_crypto_key(): string {
-	return hash( 'sha256', wp_salt( 'auth' ) . wp_salt( 'secure_auth' ), true );
-}
-
-/**
- * Encrypt a short secret (e.g. a pending password) for temporary storage.
- *
- * Uses AES-256-CBC with a random IV and a key derived from the site salts.
- * Returns the original value unchanged if the OpenSSL extension is unavailable
- * so the calling flow keeps working.
- *
- * @param string $plaintext Value to encrypt.
- * @return string Base64 "iv:ciphertext" payload, or the plaintext on failure.
- */
-function vms_elements_form_guard_encrypt_secret( string $plaintext ): string {
-	if ( '' === $plaintext || ! function_exists( 'openssl_encrypt' ) ) {
-		return $plaintext;
-	}
-
-	$iv_length = (int) openssl_cipher_iv_length( 'aes-256-cbc' );
-	$iv        = openssl_random_pseudo_bytes( $iv_length );
-	$cipher    = openssl_encrypt( $plaintext, 'aes-256-cbc', vms_elements_form_guard_crypto_key(), OPENSSL_RAW_DATA, $iv );
-
-	if ( false === $cipher ) {
-		return $plaintext;
-	}
-
-	return 'vefg1:' . base64_encode( $iv . $cipher ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding ciphertext, not obfuscation.
-}
-
-/**
- * Decrypt a value produced by vms_elements_form_guard_encrypt_secret().
- *
- * @param string $payload Encrypted payload.
- * @return string Decrypted plaintext, or the input unchanged if it was not encrypted.
- */
-function vms_elements_form_guard_decrypt_secret( string $payload ): string {
-	if ( 0 !== strpos( $payload, 'vefg1:' ) || ! function_exists( 'openssl_decrypt' ) ) {
-		return $payload;
-	}
-
-	$raw = base64_decode( substr( $payload, 6 ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding ciphertext, not obfuscation.
-	if ( false === $raw ) {
-		return '';
-	}
-
-	$iv_length = (int) openssl_cipher_iv_length( 'aes-256-cbc' );
-	if ( strlen( $raw ) <= $iv_length ) {
-		return '';
-	}
-
-	$iv     = substr( $raw, 0, $iv_length );
-	$cipher = substr( $raw, $iv_length );
-	$plain  = openssl_decrypt( $cipher, 'aes-256-cbc', vms_elements_form_guard_crypto_key(), OPENSSL_RAW_DATA, $iv );
-
-	return false === $plain ? '' : $plain;
 }

@@ -159,7 +159,7 @@ class Enqueue_Scripts {
 				'desc'            => __( 'Safe short labels without punctuation.', 'vms-elements-form-guard' ),
 				'example'         => 'Order 42 details',
 				'valid_example'   => 'Order 42 details',
-				'invalid_example' => 'hack<script>',
+				'invalid_example' => 'Order 42!@#',
 			),
 			array(
 				'key'             => 'numeric_only',
@@ -340,6 +340,8 @@ class Enqueue_Scripts {
 				vms_elements_form_guard_script_localize_data()
 			);
 		}
+
+		$this->enqueue_admin_screen_scripts( $hook_suffix );
 
 		if ( ! $needs_datatables ) {
 			return;
@@ -965,7 +967,7 @@ class Enqueue_Scripts {
 
 		wp_enqueue_script(
 			'vefg-auth-forms',
-			vms_elements_form_guard_js_asset( 'auth-forms' ),
+			VMS_ELEMENTS_FORM_GUARD_ASSETS_URL . 'js/auth-forms.js',
 			array( 'jquery' ),
 			VMS_ELEMENTS_FORM_GUARD_VERSION,
 			true
@@ -984,6 +986,217 @@ class Enqueue_Scripts {
 					'passwordsMismatch'  => __( 'Passwords do not match.', 'vms-elements-form-guard' ),
 					'passwordTooShort'   => __( 'Password must be at least 8 characters.', 'vms-elements-form-guard' ),
 				),
+			)
+		);
+	}
+
+	/**
+	 * Enqueue page-specific admin scripts (replaces template ob_start inline JS).
+	 *
+	 * @param string $hook_suffix Current admin page hook.
+	 */
+	private function enqueue_admin_screen_scripts( string $hook_suffix ): void {
+		if ( false !== strpos( $hook_suffix, 'vms-elements-form-guard-login-guard' ) ) {
+			$this->enqueue_admin_page_picker(
+				array(
+					'scopeSelector'       => '#login_guard_scope',
+					'pagesRowSelector'    => '#login_guard_pages_row',
+					'selectorRowSelector' => '#login_guard_selector_row',
+					'searchInput'         => '#login_guard_page_search',
+					'resultsContainer'    => '#login_guard_page_results',
+					'selectedContainer'   => '#login_guard_selected_pages',
+					'hiddenInput'         => '#login_guard_page_ids',
+				)
+			);
+			return;
+		}
+
+		if ( false !== strpos( $hook_suffix, 'vms-elements-form-guard-registration' ) ) {
+			$this->enqueue_admin_page_picker(
+				array(
+					'scopeSelector'       => '#rg_scope',
+					'pagesRowSelector'    => '#rg_pages_row',
+					'selectorRowSelector' => '#rg_selector_row',
+					'searchInput'         => '#rg_page_search',
+					'resultsContainer'    => '#rg_page_results',
+					'selectedContainer'   => '#rg_selected_pages',
+					'hiddenInput'         => '#rg_page_ids',
+				)
+			);
+			return;
+		}
+
+		if ( false !== strpos( $hook_suffix, 'vefg-error-messages' ) ) {
+			wp_enqueue_script(
+				'vefg-admin-error-messages',
+				vms_elements_form_guard_js_asset( 'admin-error-messages' ),
+				array( 'jquery', 'vefg-admin-toast' ),
+				VMS_ELEMENTS_FORM_GUARD_VERSION,
+				true
+			);
+			wp_localize_script(
+				'vefg-admin-error-messages',
+				'VEFGErrorMessages',
+				array(
+					'i18n' => array(
+						'resetConfirm'  => __( 'Reset all messages to defaults? This will restore all default messages.', 'vms-elements-form-guard' ),
+						'defaultLabel'  => __( 'Default', 'vms-elements-form-guard' ),
+						'defaultTitle'  => __( 'Click to reset to default', 'vms-elements-form-guard' ),
+						'customLabel'   => __( 'Custom', 'vms-elements-form-guard' ),
+						'resetSingle'   => __( 'Reset to default', 'vms-elements-form-guard' ),
+					),
+				)
+			);
+			return;
+		}
+
+		if ( false !== strpos( $hook_suffix, 'vms-elements-form-guard-ai-settings' ) ) {
+			$cfg = AI_Span_Config::get();
+			wp_enqueue_script(
+				'vefg-admin-ai-settings',
+				vms_elements_form_guard_js_asset( 'admin-ai-settings' ),
+				array( 'vefg-admin-toast' ),
+				VMS_ELEMENTS_FORM_GUARD_VERSION,
+				true
+			);
+			wp_localize_script(
+				'vefg-admin-ai-settings',
+				'VEFGAiSettings',
+				array(
+					'replacePlaceholder' => __( 'Enter new key to replace', 'vms-elements-form-guard' ),
+					'keyMasks'           => array(
+						'openai_api_key'    => vms_elements_form_guard_mask_api_key( $cfg['openai_api_key'] ?? '' ),
+						'anthropic_api_key' => vms_elements_form_guard_mask_api_key( $cfg['anthropic_api_key'] ?? '' ),
+						'gemini_api_key'    => vms_elements_form_guard_mask_api_key( $cfg['gemini_api_key'] ?? '' ),
+						'deepseek_api_key'  => vms_elements_form_guard_mask_api_key( $cfg['deepseek_api_key'] ?? '' ),
+					),
+				)
+			);
+			return;
+		}
+
+		if ( false !== strpos( $hook_suffix, 'vms-elements-form-guard-comment-settings' ) ) {
+			wp_enqueue_script(
+				'vefg-admin-spam-tabs',
+				vms_elements_form_guard_js_asset( 'admin-spam-tabs' ),
+				array( 'jquery', 'vefg-admin-toast' ),
+				VMS_ELEMENTS_FORM_GUARD_VERSION,
+				true
+			);
+			return;
+		}
+
+		if ( false !== strpos( $hook_suffix, 'vms-elements-form-guard-comment-blocks' ) ) {
+			wp_enqueue_script(
+				'vefg-admin-comment-blocks',
+				vms_elements_form_guard_js_asset( 'admin-comment-blocks' ),
+				array( 'jquery', 'vms-elements-form-guard-sweetalert', 'vefg-admin-toast' ),
+				VMS_ELEMENTS_FORM_GUARD_VERSION,
+				true
+			);
+			wp_localize_script(
+				'vefg-admin-comment-blocks',
+				'VEFGCommentBlocks',
+				array(
+					'i18n' => array(
+						'helperLookup'      => __( 'Look up a user first; the block button activates once a valid user is matched.', 'vms-elements-form-guard' ),
+						'enterQuery'        => __( 'Enter an ID, username, or email.', 'vms-elements-form-guard' ),
+						'lookingUp'         => __( 'Looking up…', 'vms-elements-form-guard' ),
+						'noMatch'           => __( 'No user matches that input.', 'vms-elements-form-guard' ),
+						'idLabel'           => __( 'ID', 'vms-elements-form-guard' ),
+						'noRole'            => __( 'no role', 'vms-elements-form-guard' ),
+						'alreadyBlocked'    => __( 'Already blocked', 'vms-elements-form-guard' ),
+						'scopeForm'         => __( 'Form', 'vms-elements-form-guard' ),
+						'scopeLogin'        => __( 'Login', 'vms-elements-form-guard' ),
+						'scopeSite'         => __( 'Site', 'vms-elements-form-guard' ),
+						'notBlocked'        => __( 'Not currently blocked.', 'vms-elements-form-guard' ),
+						'helperReview'      => __( 'Review the preview, then click "Block this user".', 'vms-elements-form-guard' ),
+						'lookupFailed'      => __( 'Lookup failed. Try again.', 'vms-elements-form-guard' ),
+						'lookupFirst'       => __( 'Look up a user first.', 'vms-elements-form-guard' ),
+						'pickScope'         => __( 'Pick at least one block scope.', 'vms-elements-form-guard' ),
+						'editScopeTitle'    => __( 'Edit block scope', 'vms-elements-form-guard' ),
+						'scopeFormComments' => __( 'Form / Comments', 'vms-elements-form-guard' ),
+						'scopeSiteBan'      => __( 'Site-wide ban', 'vms-elements-form-guard' ),
+						'save'              => __( 'Save', 'vms-elements-form-guard' ),
+						'cancel'            => __( 'Cancel', 'vms-elements-form-guard' ),
+						'saved'             => __( 'Saved.', 'vms-elements-form-guard' ),
+						'saveFailed'        => __( 'Could not save.', 'vms-elements-form-guard' ),
+						'requestFailed'     => __( 'Request failed.', 'vms-elements-form-guard' ),
+					),
+				)
+			);
+			return;
+		}
+
+		if ( false !== strpos( $hook_suffix, 'vefg-auth-forms' ) ) {
+			wp_enqueue_script(
+				'vefg-admin-auth-forms-settings',
+				vms_elements_form_guard_js_asset( 'admin-auth-forms-settings' ),
+				array( 'jquery', 'vms-elements-form-guard-sweetalert', 'vefg-admin-toast' ),
+				VMS_ELEMENTS_FORM_GUARD_VERSION,
+				true
+			);
+			wp_localize_script(
+				'vefg-admin-auth-forms-settings',
+				'VEFGAuthFormsAdmin',
+				array(
+					'i18n' => array(
+						'copied'          => __( 'Copied!', 'vms-elements-form-guard' ),
+						'generating'      => __( 'Generating...', 'vms-elements-form-guard' ),
+						'generatePages'   => __( 'Auto-Generate All Auth Pages', 'vms-elements-form-guard' ),
+						'success'         => __( 'Success', 'vms-elements-form-guard' ),
+						'error'           => __( 'Error', 'vms-elements-form-guard' ),
+						'saving'          => __( 'Saving...', 'vms-elements-form-guard' ),
+						'saved'           => __( 'Saved!', 'vms-elements-form-guard' ),
+						'enterEmail'      => __( 'Please enter an email address.', 'vms-elements-form-guard' ),
+						'sending'         => __( 'Sending...', 'vms-elements-form-guard' ),
+						'typeHere'        => __( 'Type here...', 'vms-elements-form-guard' ),
+						'login'           => __( 'Login', 'vms-elements-form-guard' ),
+						'usernameOrEmail' => __( 'Username or Email', 'vms-elements-form-guard' ),
+						'password'        => __( 'Password', 'vms-elements-form-guard' ),
+						'createAccount'   => __( 'Create Account', 'vms-elements-form-guard' ),
+						'username'        => __( 'Username', 'vms-elements-form-guard' ),
+						'email'           => __( 'Email', 'vms-elements-form-guard' ),
+						'confirmPassword' => __( 'Confirm Password', 'vms-elements-form-guard' ),
+						'resetPassword'   => __( 'Reset Password', 'vms-elements-form-guard' ),
+						'sendResetLink'   => __( 'Send Reset Link', 'vms-elements-form-guard' ),
+						'resetHint'       => __( 'Enter your email to receive a reset link.', 'vms-elements-form-guard' ),
+						'testStates'      => __( 'Test states:', 'vms-elements-form-guard' ),
+						'errorState'      => __( 'Error', 'vms-elements-form-guard' ),
+						'successState'    => __( 'Success', 'vms-elements-form-guard' ),
+					),
+				)
+			);
+		}
+	}
+
+	/**
+	 * Shared admin page picker (Login / Registration guard settings).
+	 *
+	 * @param array<string, string> $selectors DOM selectors for the picker UI.
+	 */
+	private function enqueue_admin_page_picker( array $selectors ): void {
+		wp_enqueue_script(
+			'vefg-admin-page-picker',
+			vms_elements_form_guard_js_asset( 'admin-page-picker' ),
+			array( 'jquery', 'vefg-admin-toast' ),
+			VMS_ELEMENTS_FORM_GUARD_VERSION,
+			true
+		);
+		wp_localize_script(
+			'vefg-admin-page-picker',
+			'VEFGAdminPagePicker',
+			array_merge(
+				array(
+					'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
+					'nonce'         => wp_create_nonce( 'vms_elements_form_guard_nonce' ),
+					'specificValue' => 'specific',
+					'i18n'          => array(
+						'remove'    => __( 'Remove', 'vms-elements-form-guard' ),
+						'noResults' => __( 'No pages found or all matching pages already selected.', 'vms-elements-form-guard' ),
+					),
+				),
+				$selectors
 			)
 		);
 	}

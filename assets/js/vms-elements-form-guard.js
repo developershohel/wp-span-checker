@@ -21,6 +21,11 @@ jQuery(function ($) {
         return I[key] !== undefined && I[key] !== '' ? I[key] : fallback;
     };
 
+    function getSubmitButtonText($btn, fallback) {
+        const raw = $btn.val() || $btn.text() || fallback || '';
+        return String(raw).replace(/\s+/g, ' ').trim();
+    }
+
     const settings = (typeof VEFGChecker !== 'undefined' && VEFGChecker.settings) ? VEFGChecker.settings : [];
     const ajaxUrl = (typeof VEFGChecker !== 'undefined' && (VEFGChecker.ajaxUrl || VEFGChecker.ajaxurl))
         || (typeof ajaxurl !== 'undefined' ? ajaxurl : '');
@@ -1444,7 +1449,7 @@ jQuery(function ($) {
         entry.$originalSubmit = $originalSubmit;
         
         const originalEl = $originalSubmit.get(0);
-        const btnText = $originalSubmit.val() || $originalSubmit.text() || t('submit', 'Submit');
+        const btnText = getSubmitButtonText($originalSubmit, t('submit', 'Submit'));
         entry.originalBtnText = btnText;
         
         // Create validation button

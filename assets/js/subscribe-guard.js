@@ -26,6 +26,11 @@
         return i18n[key] || fallback || key;
     }
 
+    function getSubmitButtonText($btn, fallback) {
+        var raw = $btn.val() || $btn.text() || fallback || '';
+        return String(raw).replace(/\s+/g, ' ').trim();
+    }
+
     var Toast = null;
     if (typeof Swal !== 'undefined') {
         Toast = Swal.mixin({
@@ -374,7 +379,7 @@
         var $actionsWrap = $('<div class="vefg-guard-actions"></div>');
         $originalSubmit.after($actionsWrap);
 
-        var submitText = $originalSubmit.val() || $originalSubmit.text() || t('submit', 'Subscribe');
+        var submitText = getSubmitButtonText($originalSubmit, t('submit', 'Subscribe'));
         var $validationBtn = $('<input type="button" class="vefg-validation-btn vefg-subscribe-validation-btn">');
         $validationBtn.val(submitText);
         

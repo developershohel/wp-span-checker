@@ -1,6 +1,6 @@
 <?php
 /**
- * AI VMS Elements Form Guard — provider choice (OpenAI, Anthropic, Gemini, DeepSeek).
+ * AI VMS Elements Form Guard -- provider choice (OpenAI, Anthropic, Gemini, DeepSeek).
  *
  * Variables below are received from the including admin handler scope; the
  * `vefg_mask_api_key` helper uses the legacy plugin prefix kept for BC.
@@ -74,7 +74,7 @@ $current_provider = in_array( (string) ( $cfg['provider'] ?? '' ), $allowed_prov
 	<?php
 	vms_elements_form_guard_admin_page_header(
 		__( 'AI Span Settings', 'vms-elements-form-guard' ),
-		__( 'Choose one provider for summaries and comment moderation. Credentials for other providers are kept if you switch—only the active provider is used.', 'vms-elements-form-guard' )
+		__( 'Choose one provider for summaries and comment moderation. Credentials for other providers are kept if you switch - only the active provider is used.', 'vms-elements-form-guard' )
 	);
 	?>
 
@@ -109,18 +109,6 @@ $current_provider = in_array( (string) ( $cfg['provider'] ?? '' ), $allowed_prov
 				</tr>
 			</table>
 
-			<?php
-			// Helper to mask API key
-			function vefg_mask_api_key( $key ) {
-				if ( empty( $key ) || strlen( $key ) < 10 ) {
-					return '';
-				}
-				$start = substr( $key, 0, 6 );
-				$end   = substr( $key, -4 );
-				return $start . '••••••••••••' . $end;
-			}
-			?>
-
 			<div class="vefg-ai-provider-panel" data-vefg-provider="openai">
 				<h2 class="title"><?php esc_html_e( 'OpenAI', 'vms-elements-form-guard' ); ?></h2>
 				<p class="description"><?php esc_html_e( 'Uses Chat Completions with JSON object mode. Create a key in the OpenAI dashboard.', 'vms-elements-form-guard' ); ?></p>
@@ -129,7 +117,7 @@ $current_provider = in_array( (string) ( $cfg['provider'] ?? '' ), $allowed_prov
 						<th scope="row"><label for="openai_api_key"><?php esc_html_e( 'API key', 'vms-elements-form-guard' ); ?></label></th>
 						<td>
 							<div class="vefg-api-key-field">
-								<input type="password" name="openai_api_key" id="openai_api_key" value="" class="regular-text vefg-api-key-input" autocomplete="off" placeholder="<?php echo esc_attr( vefg_mask_api_key( $cfg['openai_api_key'] ?? '' ) ?: __( 'Enter API key', 'vms-elements-form-guard' ) ); ?>" data-has-key="<?php echo ! empty( $cfg['openai_api_key'] ) ? '1' : '0'; ?>">
+								<input type="password" name="openai_api_key" id="openai_api_key" value="" class="regular-text vefg-api-key-input" autocomplete="off" placeholder="<?php echo esc_attr( vms_elements_form_guard_mask_api_key( $cfg['openai_api_key'] ?? '' ) ?: __( 'Enter API key', 'vms-elements-form-guard' ) ); ?>" data-has-key="<?php echo ! empty( $cfg['openai_api_key'] ) ? '1' : '0'; ?>">
 								<button type="button" class="button vefg-toggle-key" data-target="openai_api_key">
 									<span class="dashicons dashicons-visibility"></span>
 								</button>
@@ -154,7 +142,7 @@ $current_provider = in_array( (string) ( $cfg['provider'] ?? '' ), $allowed_prov
 						<th scope="row"><label for="anthropic_api_key"><?php esc_html_e( 'API key', 'vms-elements-form-guard' ); ?></label></th>
 						<td>
 							<div class="vefg-api-key-field">
-								<input type="password" name="anthropic_api_key" id="anthropic_api_key" value="" class="regular-text vefg-api-key-input" autocomplete="off" placeholder="<?php echo esc_attr( vefg_mask_api_key( $cfg['anthropic_api_key'] ?? '' ) ?: __( 'Enter API key', 'vms-elements-form-guard' ) ); ?>" data-has-key="<?php echo ! empty( $cfg['anthropic_api_key'] ) ? '1' : '0'; ?>">
+								<input type="password" name="anthropic_api_key" id="anthropic_api_key" value="" class="regular-text vefg-api-key-input" autocomplete="off" placeholder="<?php echo esc_attr( vms_elements_form_guard_mask_api_key( $cfg['anthropic_api_key'] ?? '' ) ?: __( 'Enter API key', 'vms-elements-form-guard' ) ); ?>" data-has-key="<?php echo ! empty( $cfg['anthropic_api_key'] ) ? '1' : '0'; ?>">
 								<button type="button" class="button vefg-toggle-key" data-target="anthropic_api_key">
 									<span class="dashicons dashicons-visibility"></span>
 								</button>
@@ -179,7 +167,7 @@ $current_provider = in_array( (string) ( $cfg['provider'] ?? '' ), $allowed_prov
 						<th scope="row"><label for="gemini_api_key"><?php esc_html_e( 'API key', 'vms-elements-form-guard' ); ?></label></th>
 						<td>
 							<div class="vefg-api-key-field">
-								<input type="password" name="gemini_api_key" id="gemini_api_key" value="" class="regular-text vefg-api-key-input" autocomplete="off" placeholder="<?php echo esc_attr( vefg_mask_api_key( $cfg['gemini_api_key'] ?? '' ) ?: __( 'Enter API key', 'vms-elements-form-guard' ) ); ?>" data-has-key="<?php echo ! empty( $cfg['gemini_api_key'] ) ? '1' : '0'; ?>">
+								<input type="password" name="gemini_api_key" id="gemini_api_key" value="" class="regular-text vefg-api-key-input" autocomplete="off" placeholder="<?php echo esc_attr( vms_elements_form_guard_mask_api_key( $cfg['gemini_api_key'] ?? '' ) ?: __( 'Enter API key', 'vms-elements-form-guard' ) ); ?>" data-has-key="<?php echo ! empty( $cfg['gemini_api_key'] ) ? '1' : '0'; ?>">
 								<button type="button" class="button vefg-toggle-key" data-target="gemini_api_key">
 									<span class="dashicons dashicons-visibility"></span>
 								</button>
@@ -204,7 +192,7 @@ $current_provider = in_array( (string) ( $cfg['provider'] ?? '' ), $allowed_prov
 						<th scope="row"><label for="deepseek_api_key"><?php esc_html_e( 'API key', 'vms-elements-form-guard' ); ?></label></th>
 						<td>
 							<div class="vefg-api-key-field">
-								<input type="password" name="deepseek_api_key" id="deepseek_api_key" value="" class="regular-text vefg-api-key-input" autocomplete="off" placeholder="<?php echo esc_attr( vefg_mask_api_key( $cfg['deepseek_api_key'] ?? '' ) ?: __( 'Enter API key', 'vms-elements-form-guard' ) ); ?>" data-has-key="<?php echo ! empty( $cfg['deepseek_api_key'] ) ? '1' : '0'; ?>">
+								<input type="password" name="deepseek_api_key" id="deepseek_api_key" value="" class="regular-text vefg-api-key-input" autocomplete="off" placeholder="<?php echo esc_attr( vms_elements_form_guard_mask_api_key( $cfg['deepseek_api_key'] ?? '' ) ?: __( 'Enter API key', 'vms-elements-form-guard' ) ); ?>" data-has-key="<?php echo ! empty( $cfg['deepseek_api_key'] ) ? '1' : '0'; ?>">
 								<button type="button" class="button vefg-toggle-key" data-target="deepseek_api_key">
 									<span class="dashicons dashicons-visibility"></span>
 								</button>
@@ -223,7 +211,7 @@ $current_provider = in_array( (string) ( $cfg['provider'] ?? '' ), $allowed_prov
 
 			<h2 class="title"><?php esc_html_e( 'Summaries', 'vms-elements-form-guard' ); ?></h2>
 			<p class="description">
-				<?php esc_html_e( 'When an item of a selected type is published or scheduled, the plugin requests a summary using the active provider above. Include “product” for WooCommerce—those summaries use catalog fields (descriptions, categories, attributes) and appear under', 'vms-elements-form-guard' ); ?>
+				<?php esc_html_e( 'When an item of a selected type is published or scheduled, the plugin requests a summary using the active provider above. Include "product" for WooCommerce - those summaries use catalog fields (descriptions, categories, attributes) and appear under', 'vms-elements-form-guard' ); ?>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=vms-elements-form-guard-ai-product-summaries' ) ); ?>"><?php esc_html_e( 'AI Product Summaries', 'vms-elements-form-guard' ); ?></a>.
 			</p>
 			<div class="vefg-post-type-grid" role="group" aria-label="<?php esc_attr_e( 'Post types for summaries', 'vms-elements-form-guard' ); ?>">
@@ -252,66 +240,5 @@ $current_provider = in_array( (string) ( $cfg['provider'] ?? '' ), $allowed_prov
 				<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Save settings', 'vms-elements-form-guard' ); ?>">
 			</p>
 		</form>
-		<?php ob_start(); ?>
-		( function () {
-			function togglePanels() {
-				var sel = document.getElementById( 'vefg_ai_provider' );
-				if ( ! sel ) {
-					return;
-				}
-				var v = sel.value;
-				document.querySelectorAll( '.vefg-ai-provider-panel' ).forEach( function ( el ) {
-					el.style.display = el.getAttribute( 'data-vefg-provider' ) === v ? '' : 'none';
-				} );
-			}
-			var providerSel = document.getElementById( 'vefg_ai_provider' );
-			if ( providerSel ) {
-				providerSel.addEventListener( 'change', togglePanels );
-			}
-			togglePanels();
-
-			// Toggle API key visibility
-			document.querySelectorAll( '.vefg-toggle-key' ).forEach( function( btn ) {
-				btn.addEventListener( 'click', function() {
-					var targetId = btn.getAttribute( 'data-target' );
-					var input = document.getElementById( targetId );
-					var icon = btn.querySelector( '.dashicons' );
-					
-					if ( input ) {
-						if ( input.type === 'password' ) {
-							input.type = 'text';
-							icon.classList.remove( 'dashicons-visibility' );
-							icon.classList.add( 'dashicons-hidden' );
-						} else {
-							input.type = 'password';
-							icon.classList.remove( 'dashicons-hidden' );
-							icon.classList.add( 'dashicons-visibility' );
-						}
-					}
-				} );
-			} );
-
-			// Clear placeholder when user starts typing
-			document.querySelectorAll( '.vefg-api-key-input' ).forEach( function( input ) {
-				input.addEventListener( 'focus', function() {
-					if ( input.dataset.hasKey === '1' && input.value === '' ) {
-						input.placeholder = '<?php echo esc_js( __( 'Enter new key to replace', 'vms-elements-form-guard' ) ); ?>';
-					}
-				} );
-				input.addEventListener( 'blur', function() {
-					if ( input.dataset.hasKey === '1' && input.value === '' ) {
-						// Restore masked placeholder
-						var masks = {
-							'openai_api_key': '<?php echo esc_js( vefg_mask_api_key( $cfg['openai_api_key'] ?? '' ) ); ?>',
-							'anthropic_api_key': '<?php echo esc_js( vefg_mask_api_key( $cfg['anthropic_api_key'] ?? '' ) ); ?>',
-							'gemini_api_key': '<?php echo esc_js( vefg_mask_api_key( $cfg['gemini_api_key'] ?? '' ) ); ?>',
-							'deepseek_api_key': '<?php echo esc_js( vefg_mask_api_key( $cfg['deepseek_api_key'] ?? '' ) ); ?>'
-						};
-						input.placeholder = masks[ input.id ] || '';
-					}
-				} );
-			} );
-		} )();
-		<?php wp_add_inline_script( 'vefg-admin-toast', ob_get_clean() ); ?>
 	</div>
 </div>
